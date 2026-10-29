@@ -1,0 +1,27 @@
+﻿# Python environments
+.venv/
+.venv-1/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Dataset and generated files
+dataset/
+models/
+outputs/
+*.keras
+*.joblib
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Editor and OS
+.vscode/
+.DS_Store
+Thumbs.db
