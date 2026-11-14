@@ -151,3 +151,4 @@ For security reasons, Hugging Face Spaces runs Docker containers with an unprivi
 
 ### 4. Will the React SPA client-side routes (e.g. `/analysis`, `/comparison`) work without 404s?
 **Yes.** `integration_api/main.py` includes a FastAPI fallback route (`@app.get("/{full_path:path}")`) that routes all non-API paths back to `frontend/dist/index.html`. Refreshing pages or navigating directly will never yield a 404.
+
