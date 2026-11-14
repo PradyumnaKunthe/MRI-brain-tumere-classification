@@ -1,4 +1,4 @@
-﻿# Python environments
+# Python environments
 .venv/
 .venv-1/
 venv/
@@ -20,6 +20,11 @@ outputs/
 .env.*
 !.env.example
 .streamlit/secrets.toml
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
 
 # Editor and OS
 .vscode/

@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -56,6 +57,7 @@ FEATURE_MODEL_PATH = (
 
 BATCH_SIZE = 16
 RANDOM_SEED = 42
+EPOCHS = 10
 
 tf.keras.utils.set_random_seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -163,20 +165,24 @@ def extract_features(
     if cache_path.exists():
         print(f"\nChecking cached features: {cache_path}")
 
-        with np.load(cache_path, allow_pickle=False) as cached:
-            cached_features = cached["features"]
-            cached_labels = cached["labels"]
-            cached_paths = cached["paths"]
+        try:
+            with np.load(cache_path, allow_pickle=False) as cached:
+                cached_features = cached["features"]
+                cached_labels = cached["labels"]
+                cached_paths = cached["paths"]
 
-        if (
-            np.array_equal(cached_paths, paths)
-            and np.array_equal(cached_labels, labels)
-            and len(cached_features) == len(labels)
-        ):
-            print(f"Reusing {split} features.")
-            return cached_features, cached_labels
+            if (
+                np.array_equal(cached_paths, paths)
+                and np.array_equal(cached_labels, labels)
+                and len(cached_features) == len(labels)
+            ):
+                print(f"Reusing {split} features.")
+                return cached_features, cached_labels
 
-        print("Cache doesn't match the manifest. Re-extracting.")
+            print("Cache doesn't match the manifest. Re-extracting.")
+        except (ValueError, KeyError, OSError) as error:
+            print(f"Old or incompatible cache detected: {error}")
+            print("Re-extracting features...")
 
     print(f"\nExtracting MobileNetV2 features: {split.upper()}")
 
@@ -231,7 +237,16 @@ def evaluate_classifier(
     print(f"TRAINING: {name}")
     print(f"{'=' * 60}")
 
+
     classifier.fit(X_train, y_train)
+
+    # Display tuning results if GridSearchCV was used.
+    if hasattr(classifier, "best_params_"):
+        clean_params = {
+            k.split("__")[-1]: v for k, v in classifier.best_params_.items()
+        }
+        print(f"\nBest SVM parameters: {clean_params}")
+        print(f"Best cross-validation accuracy: {classifier.best_score_:.4%}")
 
     # Validation score for monitoring only.
     val_predictions = classifier.predict(X_val)
@@ -265,16 +280,29 @@ def evaluate_classifier(
         zero_division=0,
     )
 
+    cm = confusion_matrix(
+        y_test,
+        test_predictions,
+        labels=list(range(len(CLASS_NAMES))),
+    )
+
     print(f"\nTest accuracy: {test_accuracy:.4%}")
+    print(f"Weighted precision: {precision:.4%}")
+    print(f"Weighted recall: {recall:.4%}")
+    print(f"Weighted F1-score: {f1:.4%}")
     print("\nClassification report:")
     print(report)
+    print("Confusion matrix:")
+    print(cm)
 
-    # Save classifier.
+    # Save classifier (save best_estimator_ if GridSearchCV was used).
+    model_to_save = getattr(classifier, "best_estimator_", classifier)
+
     safe_name = name.lower().replace(" ", "_").replace("+", "plus")
     model_path = MODEL_DIR / f"{safe_name}.joblib"
 
     joblib.dump(
-        classifier,
+        model_to_save,
         model_path,
         compress=3,
     )
@@ -284,16 +312,22 @@ def evaluate_classifier(
 
     with report_path.open("w", encoding="utf-8") as file:
         file.write(f"Model: {name}\n")
+        if hasattr(classifier, "best_params_"):
+            clean_params = {
+                k.split("__")[-1]: v for k, v in classifier.best_params_.items()
+            }
+            file.write(f"Best SVM parameters: {clean_params}\n")
+            file.write(f"Best cross-validation accuracy: {classifier.best_score_:.4%}\n")
         file.write(f"Validation accuracy: {val_accuracy:.4%}\n")
-        file.write(f"Test accuracy: {test_accuracy:.4%}\n\n")
+        file.write(f"Test accuracy: {test_accuracy:.4%}\n")
+        file.write(f"Weighted precision: {precision:.4%}\n")
+        file.write(f"Weighted recall: {recall:.4%}\n")
+        file.write(f"Weighted F1-score: {f1:.4%}\n\n")
+        file.write("Classification report:\n")
         file.write(report)
-
-    # Save confusion matrix.
-    cm = confusion_matrix(
-        y_test,
-        test_predictions,
-        labels=list(range(len(CLASS_NAMES))),
-    )
+        file.write("\nConfusion matrix:\n")
+        file.write(np.array2string(cm))
+        file.write("\n")
 
     display = ConfusionMatrixDisplay(
         confusion_matrix=cm,
@@ -363,18 +397,38 @@ def main():
     print("Validation:", X_val.shape, y_val.shape)
     print("Test:", X_test.shape, y_test.shape)
 
-    # 1. Support Vector Machine.
-    svm_model = Pipeline([
+    # 1. Support Vector Machine with Hyperparameter Tuning.
+    svm_pipeline = Pipeline([
         ("scaler", StandardScaler()),
         ("classifier", SVC(
             kernel="rbf",
-            C=10,
-            gamma="scale",
             probability=True,
             cache_size=512,
             random_state=RANDOM_SEED,
         )),
     ])
+
+    param_grid = {
+        "classifier__C": [1, 10, 30],
+        "classifier__gamma": ["scale", 0.001],
+        "classifier__kernel": ["rbf"],
+    }
+
+    cv = StratifiedKFold(
+        n_splits=3,
+        shuffle=True,
+        random_state=RANDOM_SEED,
+    )
+
+    svm_model = GridSearchCV(
+        estimator=svm_pipeline,
+        param_grid=param_grid,
+        cv=cv,
+        scoring="accuracy",
+        refit=True,
+        n_jobs=1,
+        verbose=1,
+    )
 
     # 2. Random Forest.
     random_forest_model = RandomForestClassifier(

@@ -1,0 +1,55 @@
+# Git and Version Control
+.git
+.gitignore
+.gitattributes
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.venv*/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE & Editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Full Raw Dataset (Exclude full dataset to keep image under HF Spaces limit)
+# Note: Sample test images can be bundled under dataset/Epic and CSCR hospital Dataset/Test
+dataset/Epic and CSCR hospital Dataset/Train/
+
+# Local task & log files
+*.log
+scratch/
+
+# Node.js artifacts
+node_modules/
+frontend/node_modules/
+
