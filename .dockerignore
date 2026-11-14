@@ -1,13 +1,14 @@
 # ==============================================================================
-# .dockerignore for Hugging Face Spaces & Production Containers
+# .dockerignore for Google Cloud Run & Production Docker Builds
 # ==============================================================================
 
 # Git and Version Control
-.git
+.git/
 .gitignore
 .gitattributes
+.gcloudignore
 
-# Python artifacts
+# Python virtual environments & bytecode
 __pycache__/
 *.py[cod]
 *$py.class
@@ -44,18 +45,22 @@ htmlcov/
 .vscode/
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
 
-# Full Raw Dataset (Exclude full training set to keep image under HF Spaces limit)
-# Note: Sample test scans in dataset/.../Test are bundled for live UI sample evaluation
-dataset/Epic and CSCR hospital Dataset/Train/
+# Dataset (Excluded from Cloud Run production container)
+dataset/
 
-# Large offline training feature cache files (>27MB each, not required for live inference)
-outputs/mobilenet_features/*.npz
+# Offline training feature cache files (>27MB each, not required for live inference)
+outputs/mobilenet_features/
 
 # Local task & log files
 *.log
 scratch/
+.system_generated/
+.streamlit/
 
-# Node.js artifacts (compiled freshly in Docker Stage 1)
+# Node.js artifacts (compiled fresh in Docker Stage 1)
 node_modules/
 frontend/node_modules/
+frontend/dist/

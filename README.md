@@ -67,7 +67,8 @@ The dataset was partitioned using an 80/20 train-validation split and an indepen
 - **Machine Learning:** TensorFlow / Keras 2.21, Scikit-learn 1.9, Joblib 1.6
 - **Scientific Computing:** NumPy, Pandas, OpenCV, Pillow, Matplotlib, Seaborn
 - **Fallback UI:** Streamlit 1.66
-- **Containerization:** Docker SDK (Hugging Face Spaces)
+- **Containerization:** Docker (Multi-stage Node 24 + Python 3.11)
+- **Cloud Deployment:** Google Cloud Run (Primary) & Hugging Face Spaces (Alternative)
 
 ---
 
@@ -98,25 +99,25 @@ python -m pip install -r requirements.txt
 
 ### 4. Run the Applications:
 
-#### Option A: Unified React.js + FastAPI Platform (Recommended)
+#### Option A: Unified React.js + FastAPI Platform (Port 8080 / 8000)
 FastAPI serves the compiled React production frontend and all API endpoints together on a single port:
 ```bash
-uvicorn integration_api.main:app --host 0.0.0.0 --port 8000
+uvicorn integration_api.main:app --host 0.0.0.0 --port 8080
 ```
-- Web Application: [http://localhost:8000](http://localhost:8000)
-- Interactive API Docs (Swagger): [http://localhost:8000/docs](http://localhost:8000/docs)
+- Web Application: [http://localhost:8080](http://localhost:8080)
+- Interactive API Docs (Swagger): [http://localhost:8080/docs](http://localhost:8080/docs)
 
 #### Option B: React Vite Development Server (Hot Reload)
 ```bash
 # Terminal 1: Backend
-uvicorn integration_api.main:app --host 0.0.0.0 --port 8000
+uvicorn integration_api.main:app --host 0.0.0.0 --port 8080
 
 # Terminal 2: Frontend
 cd frontend
 npm install
 npm run dev
 ```
-- Dev Server: [http://localhost:5173](http://localhost:5173) (Proxies `/api` to port 8000)
+- Dev Server: [http://localhost:5173](http://localhost:5173) (Proxies `/api` to port 8080)
 
 #### Option C: Preserved Streamlit Application (Fallback)
 ```bash
@@ -128,6 +129,47 @@ python -m streamlit run app.py
 ```bash
 python run_tests.py
 ```
+
+---
+
+## ☁️ Deployment to Google Cloud Run (Recommended)
+
+Google Cloud Run deploys the application directly from the local source directory using the repaired multi-stage `Dockerfile`, `.gcloudignore`, and `requirements-deploy.txt`.
+
+### Step 1: Install & Authenticate Google Cloud CLI
+```bash
+# Login to Google Cloud
+gcloud auth login
+
+# Set active project
+gcloud config set project <YOUR_PROJECT_ID>
+```
+
+### Step 2: Enable Required Cloud Services
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+```
+
+### Step 3: Deploy to Cloud Run via Local Source
+Run the deployment command directly from the project root:
+```bash
+gcloud run deploy mri-brain-tumor-app \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 2 \
+  --timeout 300
+```
+
+> **Why this configuration works:**
+> - `.gcloudignore` ensures all 6 preloaded model checkpoints in `models/` (~60 MB) and API evaluation assets in `outputs/` are packaged and uploaded, while excluding heavy raw training datasets (`dataset/`) and local `.venv/`.
+> - The multi-stage `Dockerfile` uses **Node 24 LTS** to compile the React SPA with `npm ci`, and **Python 3.11** with `requirements-deploy.txt` for minimal image size.
+> - The container dynamically listens on Cloud Run's injected `$PORT` (defaulting to 8080).
+> - Setting `--min-instances 0` allows the container to scale to zero when idle, keeping costs within the free tier.
 
 ---
 

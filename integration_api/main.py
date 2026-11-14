@@ -4,6 +4,7 @@ Serves as an isolated integration adapter between the existing ML pipelines and 
 Provides REST endpoints and directly serves the compiled React application.
 """
 
+import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,12 +24,27 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS middleware for React Vite dev server and external clients
+# Secure CORS configuration:
+# In Cloud Run production, React is served directly from the same origin as FastAPI.
+# For local development and external frontend proxies, origins can be configured via ALLOWED_ORIGINS.
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -81,7 +97,7 @@ if __name__ == "__main__":
     import os
     import uvicorn
 
-    server_port = int(os.environ.get("PORT", 7860))
+    server_port = int(os.environ.get("PORT", 8080))
     print(f"[*] Starting MRI Brain Tumor Detection Integration Server on port {server_port}...")
     uvicorn.run("integration_api.main:app", host="0.0.0.0", port=server_port, reload=False)
 

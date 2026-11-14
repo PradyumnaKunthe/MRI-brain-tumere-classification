@@ -1,0 +1,25 @@
+# ==============================================================================
+# Production Deployment Requirements for MRI Brain Tumor Detection
+# Target Platform: Google Cloud Run (Docker Container)
+# ==============================================================================
+# Contains only runtime dependencies required for FastAPI, model inference,
+# and React static file serving. Excludes offline training, Streamlit, and dev tools.
+
+# Core Machine Learning & Model Deserialization (Exact versions matching saved models)
+tensorflow==2.21.0
+scikit-learn==1.9.1
+joblib==1.6.0
+
+# Scientific & Data Processing
+numpy>=1.26.0,<=2.4.6
+pandas>=2.2.0,<=3.1.0
+
+# Image Preprocessing & Standardization (PIL / Pillow)
+pillow>=10.0.0,<=13.0.0
+
+# Production API Framework & High-Performance ASGI Web Server
+fastapi>=0.110.0,<=0.162.7
+uvicorn[standard]>=0.28.0,<=0.54.0
+python-multipart>=0.0.9,<=0.0.32
+pydantic>=2.0.0,<=2.14.3
+

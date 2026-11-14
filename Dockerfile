@@ -1,39 +1,38 @@
 # ==============================================================================
 # Multi-Stage Production Dockerfile for MRI Brain Tumor Detection Platform
-# Target Deployment: Hugging Face Spaces (Docker SDK) / Container Cloud
+# Target Deployment: Google Cloud Run (Docker Runtime)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # Stage 1: Build React Production SPA Frontend
 # ------------------------------------------------------------------------------
-FROM node:20-slim AS frontend-builder
+FROM node:24-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Install dependencies first for optimal Docker layer caching
+# Copy package manifests and install dependencies deterministically via npm ci
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --prefer-offline || npm install
+RUN npm ci
 
-# Copy frontend source code and compile production assets
+# Copy frontend source code and compile production assets with Vite
 COPY frontend/ ./
 RUN npm run build
 
 # ------------------------------------------------------------------------------
-# Stage 2: Runtime Environment with Python & Machine Learning Stack
+# Stage 2: Runtime Environment with Python 3.11 & Machine Learning Stack
 # ------------------------------------------------------------------------------
 FROM python:3.11-slim
 
-# Set environment variables
+# Set environment variables for optimized container runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DEBIAN_FRONTEND=noninteractive \
-    PORT=7860
+    DEBIAN_FRONTEND=noninteractive
 
 # Install required system packages
-# - build-essential: compile any C extensions
-# - curl: container health checks
-# - git: repo operations
-# - libgl1 & libglib2.0-0: image codecs / OpenCV dependencies
+# - build-essential: compile any binary wheel dependencies
+# - curl: container health checks and probes
+# - git: versioning utilities
+# - libgl1 & libglib2.0-0: image codecs / graphical libraries for image processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -42,33 +41,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user with UID 1000 (standard for Hugging Face Spaces security)
-RUN useradd -m -u 1000 user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
+# Create a non-root user with UID 1000 for secure container execution
+RUN useradd -m -u 1000 appuser
+ENV HOME=/home/appuser \
+    PATH=/home/appuser/.local/bin:$PATH
 
 WORKDIR /app
 
-# Upgrade pip and install Python dependencies
-COPY requirements.txt .
+# Upgrade pip and install production-only Python dependencies
+COPY requirements-deploy.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements-deploy.txt
 
-# Copy application source code, models, output metrics, and sample data
-COPY --chown=user:user . /app
+# Copy application source code, models, and output metrics
+COPY --chown=appuser:appuser . /app
 
 # Copy the compiled React application from Stage 1 into frontend/dist
-COPY --from=frontend-builder --chown=user:user /app/frontend/dist /app/frontend/dist
+COPY --from=frontend-builder --chown=appuser:appuser /app/frontend/dist /app/frontend/dist
 
 # Switch to non-root user
-USER user
+USER appuser
 
-# Expose default Hugging Face Spaces port
-EXPOSE 7860
+# Expose default Google Cloud Run port
+EXPOSE 8080
 
-# Container health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:7860/api/health || exit 1
+# Container health check (using dynamic PORT with 8080 fallback)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
 
 # Launch unified FastAPI server (serves React frontend + REST API)
-CMD ["sh", "-c", "uvicorn integration_api.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+# Uses exec form in shell to ensure proper SIGTERM signal forwarding on Cloud Run
+CMD ["sh", "-c", "exec uvicorn integration_api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

@@ -1,0 +1,54 @@
+# ==============================================================================
+# .gcloudignore for Google Cloud Run Local Source Deployment
+# Ensures model artifacts & outputs are uploaded, while excluding dataset, venvs, and cache
+# ==============================================================================
+
+# Git repository
+.git/
+.gitignore
+.gitattributes
+
+# Virtual environments
+.venv/
+.venv*/
+venv/
+env/
+
+# Python cache & compiled bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node.js dependencies & local dist (built fresh inside Docker Stage 1)
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Full Dataset (Excluded to prevent massive uploads and respect Cloud Run limits)
+dataset/
+
+# Feature caches (offline training arrays only)
+outputs/mobilenet_features/
+
+# Testing & code coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE, editor & OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Task logs & scratch scripts
+*.log
+scratch/
+.system_generated/
+.streamlit/
+
