@@ -75,3 +75,13 @@ def serve_spa(full_path: str):
         return FileResponse(index_file)
     
     raise HTTPException(status_code=404, detail="Page not found.")
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    server_port = int(os.environ.get("PORT", 7860))
+    print(f"[*] Starting MRI Brain Tumor Detection Integration Server on port {server_port}...")
+    uvicorn.run("integration_api.main:app", host="0.0.0.0", port=server_port, reload=False)
+

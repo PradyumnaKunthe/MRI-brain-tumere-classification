@@ -1,3 +1,7 @@
+# ==============================================================================
+# .dockerignore for Hugging Face Spaces & Production Containers
+# ==============================================================================
+
 # Git and Version Control
 .git
 .gitignore
@@ -41,15 +45,17 @@ htmlcov/
 *.swp
 *.swo
 
-# Full Raw Dataset (Exclude full dataset to keep image under HF Spaces limit)
-# Note: Sample test images can be bundled under dataset/Epic and CSCR hospital Dataset/Test
+# Full Raw Dataset (Exclude full training set to keep image under HF Spaces limit)
+# Note: Sample test scans in dataset/.../Test are bundled for live UI sample evaluation
 dataset/Epic and CSCR hospital Dataset/Train/
+
+# Large offline training feature cache files (>27MB each, not required for live inference)
+outputs/mobilenet_features/*.npz
 
 # Local task & log files
 *.log
 scratch/
 
-# Node.js artifacts
+# Node.js artifacts (compiled freshly in Docker Stage 1)
 node_modules/
 frontend/node_modules/
-

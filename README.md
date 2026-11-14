@@ -133,24 +133,28 @@ python run_tests.py
 
 ## 🐳 Deployment to Hugging Face Spaces (Docker SDK)
 
-1. Log in to [Hugging Face](https://huggingface.co/) and click **New Space**.
-2. Name your space (e.g. `mri-brain-tumor-detection`) and select **Docker** as the Space SDK.
-3. Clone your new Hugging Face Space repository:
+For complete end-to-end instructions, refer to the [Hugging Face Spaces Deployment Guide](file:///c:/Users/kunth/OneDrive/Desktop/MRI-Brain-Tumor-Detection/HUGGINGFACE_SPACES_DEPLOYMENT_GUIDE.md).
+
+### Quick Deployment Steps:
+
+1. Create a **New Space** on [Hugging Face](https://huggingface.co/new-space) and select **Docker** as the Space SDK (Blank template, Free CPU basic).
+2. Add your Hugging Face Space repository as a remote:
    ```bash
-   git clone https://huggingface.co/spaces/<YOUR_USERNAME>/<SPACE_NAME>
-   cd <SPACE_NAME>
+   git remote add space https://huggingface.co/spaces/<YOUR_USERNAME>/<SPACE_NAME>
    ```
-4. Copy the project files (`app.py`, `models/`, `outputs/`, `Dockerfile`, `.dockerignore`, `.streamlit/`, `requirements.txt`, `README.md`) into your space directory.
-5. Push using Git LFS for large model files (`*.joblib`, `*.keras`):
+3. Initialize Git LFS and track model binaries:
    ```bash
    git lfs install
-   git lfs track "*.joblib" "*.keras"
-   git add .gitattributes
-   git add .
-   git commit -m "Deploy MRI Brain Tumor Detection Suite"
-   git push origin main
+   git lfs track "models/*.joblib" "models/*.keras"
    ```
-6. Hugging Face Spaces will automatically build the Docker container and serve the application on port `7860`.
+4. Stage model checkpoints and container configuration:
+   ```bash
+   git add -f models/ outputs/ "dataset/Epic and CSCR hospital Dataset/Test"
+   git add Dockerfile .dockerignore .gitattributes README.md
+   git commit -m "Deploy MRI Brain Tumor Detection Suite to Hugging Face Spaces"
+   git push space main
+   ```
+5. Hugging Face Spaces will automatically execute the multi-stage build and serve the application on port `7860`.
 
 ---
 
